@@ -1,0 +1,77 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "azure-vm-control",
+  "title": "Azure VM Control",
+  "description": "Monitor and control a single Azure Virtual Machine directly from the macOS menu bar",
+  "icon": "extension-icon.png",
+  "author": "Malo-ae",
+  "categories": [
+    "Developer Tools",
+    "Productivity"
+  ],
+  "license": "MIT",
+  "platforms": [
+    "macOS"
+  ],
+  "commands": [
+    {
+      "name": "azure-vm-status",
+      "title": "VM Status",
+      "subtitle": "Azure VM",
+      "description": "Live VM status in the menu bar with start/stop controls",
+      "mode": "menu-bar",
+      "interval": "5m"
+    },
+    {
+      "name": "configure-vm",
+      "title": "Configure VM",
+      "subtitle": "Azure VM",
+      "description": "Select the Azure subscription, resource group, and virtual machine to monitor",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "tenantId",
+      "type": "textfield",
+      "required": true,
+      "title": "Tenant ID",
+      "description": "Azure Entra ID (Active Directory) Tenant ID",
+      "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    },
+    {
+      "name": "clientId",
+      "type": "textfield",
+      "required": true,
+      "title": "Client ID",
+      "description": "Service Principal Application (Client) ID",
+      "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    },
+    {
+      "name": "clientSecret",
+      "type": "password",
+      "required": true,
+      "title": "Client Secret",
+      "description": "Service Principal client secret value"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.104.0",
+    "@raycast/utils": "^1.19.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "22.13.10",
+    "eslint": "^8.57.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "prepublishOnly": "echo \"Error: no publish\" && exit 1",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
