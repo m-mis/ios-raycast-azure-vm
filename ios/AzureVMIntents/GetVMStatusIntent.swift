@@ -7,7 +7,7 @@ struct GetVMStatusIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         guard let config = ConfigStore.loadVmConfig() else {
-            throw $IntentError.noVmConfigured
+            throw IntentError.noVmConfigured
         }
 
         let status = try await AzureAPI.getVmStatus(config: config)
@@ -20,7 +20,7 @@ struct GetVMStatusIntent: AppIntent {
         return .result(value: result)
     }
 
-    enum $IntentError: Error, CustomLocalizedStringResourceConvertible {
+    enum IntentError: Error, CustomLocalizedStringResourceConvertible {
         case noVmConfigured
 
         var localizedStringResource: LocalizedStringResource {
