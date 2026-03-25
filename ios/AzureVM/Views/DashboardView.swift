@@ -177,6 +177,9 @@ struct DashboardView: View {
         error = nil
         do {
             vmStatus = try await AzureAPI.getVmStatus(config: config)
+            if let state = vmStatus?.powerState {
+                AppIconManager.updateIcon(for: state)
+            }
         } catch {
             if !silent { self.error = error.localizedDescription }
         }
