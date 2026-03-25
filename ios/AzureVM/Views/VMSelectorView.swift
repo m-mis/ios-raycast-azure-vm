@@ -3,24 +3,30 @@ import SwiftUI
 struct VMSelectorView: View {
     var onSelected: () -> Void
 
-    @State private var path = NavigationPath()
     @State private var subscriptions: [Subscription] = []
     @State private var resourceGroups: [ResourceGroup] = []
     @State private var virtualMachines: [VirtualMachine] = []
     @State private var selectedSubscription: Subscription?
+    @State private var selectedResourceGroup: ResourceGroup?
     @State private var isLoading = false
     @State private var error: String?
 
     var body: some View {
         subscriptionList
             .navigationTitle("Select VM")
-            .navigationDestination(for: String.self) { step in
-                if step == "resourceGroups" {
+            .navigationDestination(for: NavigationStep.self) { step in
+                switch step {
+                case .resourceGroups:
                     resourceGroupList
-                } else if step == "vms" {
+                case .vms:
                     vmList
                 }
             }
+    }
+
+    enum NavigationStep: Hashable {
+        case resourceGroups
+        case vms
     }
 
     // MARK: - Step 1: Subscriptions
@@ -36,10 +42,7 @@ struct VMSelectorView: View {
             }
             Section("Select a Subscription") {
                 ForEach(subscriptions) { sub in
-                    Button {
-                        selectedSubscription = sub
-                        Task { await loadResourceGroups(subscriptionId: sub.subscriptionId) }
-                    } label: {
+                    NavigationLink(value: NavigationStep.resourceGroups) {
                         VStack(alignment: .leading) {
                             Text(sub.displayName)
                                 .font(.body)
@@ -48,7 +51,10 @@ struct VMSelectorView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .foregroundStyle(.primary)
+                    .simultaneousGesture(TapGesture().onEnded {
+                        selectedSubscription = sub
+                        Task { await loadResourceGroups(subscriptionId: sub.subscriptionId) }
+                    })
                 }
             }
         }
@@ -68,9 +74,7 @@ struct VMSelectorView: View {
         List {
             Section("Select a Resource Group") {
                 ForEach(resourceGroups) { rg in
-                    Button {
-                        Task { await loadVMs(subscriptionId: selectedSubscription!.subscriptionId, resourceGroup: rg.name) }
-                    } label: {
+                    NavigationLink(value: NavigationStep.vms) {
                         VStack(alignment: .leading) {
                             Text(rg.name)
                                 .font(.body)
@@ -79,7 +83,10 @@ struct VMSelectorView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .foregroundStyle(.primary)
+                    .simultaneousGesture(TapGesture().onEnded {
+                        selectedResourceGroup = rg
+                        Task { await loadVMs(subscriptionId: selectedSubscription!.subscriptionId, resourceGroup: rg.name) }
+                    })
                 }
             }
         }
@@ -145,7 +152,6 @@ struct VMSelectorView: View {
         resourceGroups = []
         do {
             resourceGroups = try await AzureAPI.listResourceGroups(subscriptionId: subscriptionId)
-            path.append("resourceGroups")
         } catch {
             self.error = error.localizedDescription
         }
@@ -158,7 +164,6 @@ struct VMSelectorView: View {
         virtualMachines = []
         do {
             virtualMachines = try await AzureAPI.listVirtualMachines(subscriptionId: subscriptionId, resourceGroup: resourceGroup)
-            path.append("vms")
         } catch {
             self.error = error.localizedDescription
         }
@@ -166,11 +171,11 @@ struct VMSelectorView: View {
     }
 
     private func selectVM(_ vm: VirtualMachine) {
-        guard let sub = selectedSubscription else { return }
+        guard let sub = selectedSubscription, let rg = selectedResourceGroup else { return }
         let config = VmConfig(
             subscriptionId: sub.subscriptionId,
             subscriptionName: sub.displayName,
-            resourceGroup: vm.location,
+            resourceGroup: rg.name,
             vmName: vm.name
         )
         ConfigStore.saveVmConfig(config)
