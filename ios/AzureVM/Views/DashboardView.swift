@@ -9,12 +9,15 @@ struct DashboardView: View {
     @State private var actionInFlight = false
     @State private var error: String?
     @State private var showStopConfirmation = false
+    @State private var now = Date()
 
     private var config: VmConfig? { ConfigStore.loadVmConfig() }
 
     private var effectiveState: PowerState {
         vmStatus?.powerState ?? .unknown
     }
+
+    private let uptimeTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScrollView {
@@ -58,12 +61,14 @@ struct DashboardView: View {
         }
         .task(id: effectiveState) {
             guard effectiveState.display.isTransitioning else { return }
-            // Fast polling during transitions
             while !Task.isCancelled && effectiveState.display.isTransitioning {
                 try? await Task.sleep(for: .seconds(10))
                 guard !Task.isCancelled else { break }
                 await loadStatus(silent: true)
             }
+        }
+        .onReceive(uptimeTimer) { _ in
+            now = Date()
         }
         .confirmationDialog("Deallocate VM?", isPresented: $showStopConfirmation) {
             Button("Deallocate", role: .destructive) {
@@ -78,32 +83,24 @@ struct DashboardView: View {
 
     private var statusCard: some View {
         VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(effectiveState.display.color.opacity(0.15))
-                    .frame(width: 120, height: 120)
+            Image(systemName: effectiveState.display.systemImage)
+                .font(.system(size: 56, weight: .light))
+                .foregroundStyle(effectiveState.display.color)
+                .symbolEffect(.pulse, isActive: effectiveState.display.isTransitioning)
 
-                Image(systemName: effectiveState.display.systemImage)
-                    .font(.system(size: 48))
-                    .foregroundStyle(effectiveState.display.color)
-                    .symbolEffect(.pulse, isActive: effectiveState.display.isTransitioning)
-            }
-
-            VStack(spacing: 4) {
-                Text(effectiveState.display.label)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(effectiveState.display.color)
-
+            VStack(spacing: 6) {
                 if effectiveState == .running, let startedAt = vmStatus?.startedAt {
-                    Label(formatUptime(from: startedAt), systemImage: "clock")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Text("Running for \(liveUptime(from: startedAt))")
+                        .font(.title3)
+                        .fontWeight(.medium)
+                        .foregroundStyle(effectiveState.display.color)
+                        .contentTransition(.numericText())
+                } else {
+                    Text(effectiveState.display.label)
+                        .font(.title3)
+                        .fontWeight(.medium)
+                        .foregroundStyle(effectiveState.display.color)
                 }
-            }
-
-            if isLoading && vmStatus == nil {
-                ProgressView()
             }
 
             if let error {
@@ -121,34 +118,42 @@ struct DashboardView: View {
     // MARK: - Action Buttons
 
     private var actionButtons: some View {
-        HStack(spacing: 16) {
-            if !effectiveState.isRunning {
-                Button {
-                    Task { await startVM() }
-                } label: {
-                    Label("Start", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
-                .disabled(actionInFlight || effectiveState.display.isTransitioning)
-            }
+        Group {
+            if isLoading && vmStatus == nil {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            } else {
+                HStack(spacing: 16) {
+                    if !effectiveState.isRunning {
+                        Button {
+                            Task { await startVM() }
+                        } label: {
+                            Label("Start", systemImage: "play.fill")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.green)
+                        .disabled(actionInFlight || effectiveState.display.isTransitioning)
+                    }
 
-            if !effectiveState.isStopped {
-                Button {
-                    showStopConfirmation = true
-                } label: {
-                    Label("Deallocate", systemImage: "stop.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                    if !effectiveState.isStopped {
+                        Button {
+                            showStopConfirmation = true
+                        } label: {
+                            Label("Deallocate", systemImage: "stop.fill")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .disabled(actionInFlight || effectiveState.display.isTransitioning)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-                .disabled(actionInFlight || effectiveState.display.isTransitioning)
+                .disabled(config == nil)
             }
         }
-        .disabled(config == nil)
     }
 
     // MARK: - Info Section
@@ -167,6 +172,16 @@ struct DashboardView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: - Helpers
+
+    private func liveUptime(from startDate: Date) -> String {
+        let interval = Int(now.timeIntervalSince(startDate))
+        let hours = interval / 3600
+        let minutes = (interval % 3600) / 60
+        let seconds = interval % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 
     // MARK: - Actions

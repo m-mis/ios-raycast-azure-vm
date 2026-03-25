@@ -11,19 +11,19 @@ extension PowerState {
     var display: PowerStateDisplay {
         switch self {
         case .running:
-            return PowerStateDisplay(label: "Running", color: .green, systemImage: "power", isTransitioning: false)
+            return PowerStateDisplay(label: "Running", color: .green, systemImage: "checkmark.circle.fill", isTransitioning: false)
         case .starting:
-            return PowerStateDisplay(label: "Starting...", color: .orange, systemImage: "bolt.fill", isTransitioning: true)
+            return PowerStateDisplay(label: "Starting...", color: .orange, systemImage: "arrow.up.circle.fill", isTransitioning: true)
         case .stopping:
-            return PowerStateDisplay(label: "Stopping...", color: .orange, systemImage: "stop.fill", isTransitioning: true)
+            return PowerStateDisplay(label: "Stopping...", color: .orange, systemImage: "arrow.down.circle.fill", isTransitioning: true)
         case .deallocating:
-            return PowerStateDisplay(label: "Deallocating...", color: .orange, systemImage: "stop.fill", isTransitioning: true)
+            return PowerStateDisplay(label: "Deallocating...", color: .orange, systemImage: "arrow.down.circle.fill", isTransitioning: true)
         case .deallocated:
-            return PowerStateDisplay(label: "Deallocated", color: .red, systemImage: "power", isTransitioning: false)
+            return PowerStateDisplay(label: "Deallocated", color: .red, systemImage: "minus.circle.fill", isTransitioning: false)
         case .stopped:
-            return PowerStateDisplay(label: "Stopped", color: .red, systemImage: "power", isTransitioning: false)
+            return PowerStateDisplay(label: "Stopped", color: .red, systemImage: "minus.circle.fill", isTransitioning: false)
         case .unknown:
-            return PowerStateDisplay(label: "Unknown", color: .gray, systemImage: "questionmark.circle", isTransitioning: false)
+            return PowerStateDisplay(label: "Unknown", color: .gray, systemImage: "questionmark.circle.fill", isTransitioning: false)
         }
     }
 
