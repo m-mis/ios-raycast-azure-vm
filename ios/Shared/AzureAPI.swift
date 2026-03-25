@@ -117,7 +117,21 @@ enum AzureAPI {
 
     static func getVmStatus(config: VmConfig) async throws -> VmStatus {
         let instanceView = try await getInstanceView(config: config)
-        return parseVmStatus(instanceView: instanceView)
+        var status = parseVmStatus(instanceView: instanceView)
+
+        if status.powerState == .running && status.startedAt == nil {
+            // Fallback: try Activity Log for start time
+            if let startTime = try? await getVmStartTime(config: config) {
+                status = VmStatus(
+                    powerState: status.powerState,
+                    displayStatus: status.displayStatus,
+                    provisioningState: status.provisioningState,
+                    startedAt: startTime
+                )
+            }
+        }
+
+        return status
     }
 
     static func parseVmStatus(instanceView: VmInstanceView) -> VmStatus {
@@ -132,14 +146,15 @@ enum AzureAPI {
             powerState = .unknown
         }
 
-        // Parse start time from the power status timestamp
+        // Try to get start time from any status timestamp
         var startedAt: Date?
-        if let timeStr = powerStatus?.time {
-            let formatter = ISO8601DateFormatter()
+        let formatter = ISO8601DateFormatter()
+        // Try power status time first, then provisioning status time
+        let timeStr = powerStatus?.time ?? provisioningStatus?.time
+        if let timeStr {
             formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             startedAt = formatter.date(from: timeStr)
             if startedAt == nil {
-                // Try without fractional seconds
                 formatter.formatOptions = [.withInternetDateTime]
                 startedAt = formatter.date(from: timeStr)
             }

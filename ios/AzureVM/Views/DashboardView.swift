@@ -10,11 +10,16 @@ struct DashboardView: View {
     @State private var error: String?
     @State private var showStopConfirmation = false
     @State private var now = Date()
+    @State private var localStartedAt: Date?
 
     private var config: VmConfig? { ConfigStore.loadVmConfig() }
 
     private var effectiveState: PowerState {
         vmStatus?.powerState ?? .unknown
+    }
+
+    private var runningStartDate: Date? {
+        vmStatus?.startedAt ?? localStartedAt
     }
 
     private let uptimeTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -89,7 +94,7 @@ struct DashboardView: View {
                 .symbolEffect(.pulse, isActive: effectiveState.display.isTransitioning)
 
             VStack(spacing: 6) {
-                if effectiveState == .running, let startedAt = vmStatus?.startedAt {
+                if effectiveState == .running, let startedAt = runningStartDate {
                     Text("Running for \(liveUptime(from: startedAt))")
                         .font(.title3)
                         .fontWeight(.medium)
@@ -194,6 +199,12 @@ struct DashboardView: View {
             vmStatus = try await AzureAPI.getVmStatus(config: config)
             if let state = vmStatus?.powerState {
                 AppIconManager.updateIcon(for: state)
+                // Track local start time as fallback for uptime
+                if state == .running && vmStatus?.startedAt == nil && localStartedAt == nil {
+                    localStartedAt = Date()
+                } else if !state.isRunning {
+                    localStartedAt = nil
+                }
             }
         } catch {
             if !silent { self.error = error.localizedDescription }
