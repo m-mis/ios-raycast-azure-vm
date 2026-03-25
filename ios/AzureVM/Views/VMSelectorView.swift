@@ -4,29 +4,15 @@ struct VMSelectorView: View {
     var onSelected: () -> Void
 
     @State private var subscriptions: [Subscription] = []
-    @State private var resourceGroups: [ResourceGroup] = []
-    @State private var virtualMachines: [VirtualMachine] = []
-    @State private var selectedSubscription: Subscription?
-    @State private var selectedResourceGroup: ResourceGroup?
     @State private var isLoading = false
     @State private var error: String?
 
     var body: some View {
         subscriptionList
             .navigationTitle("Select VM")
-            .navigationDestination(for: NavigationStep.self) { step in
-                switch step {
-                case .resourceGroups:
-                    resourceGroupList
-                case .vms:
-                    vmList
-                }
+            .navigationDestination(for: Subscription.self) { sub in
+                ResourceGroupStepView(subscription: sub, onSelected: onSelected)
             }
-    }
-
-    enum NavigationStep: Hashable {
-        case resourceGroups
-        case vms
     }
 
     // MARK: - Step 1: Subscriptions
@@ -42,7 +28,7 @@ struct VMSelectorView: View {
             }
             Section("Select a Subscription") {
                 ForEach(subscriptions) { sub in
-                    NavigationLink(value: NavigationStep.resourceGroups) {
+                    NavigationLink(value: sub) {
                         VStack(alignment: .leading) {
                             Text(sub.displayName)
                                 .font(.body)
@@ -51,10 +37,6 @@ struct VMSelectorView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .simultaneousGesture(TapGesture().onEnded {
-                        selectedSubscription = sub
-                        Task { await loadResourceGroups(subscriptionId: sub.subscriptionId) }
-                    })
                 }
             }
         }
@@ -68,13 +50,40 @@ struct VMSelectorView: View {
         }
     }
 
-    // MARK: - Step 2: Resource Groups
+    private func loadSubscriptions() async {
+        isLoading = true
+        error = nil
+        do {
+            subscriptions = try await AzureAPI.listSubscriptions()
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+}
 
-    private var resourceGroupList: some View {
+// MARK: - Step 2: Resource Groups
+
+private struct ResourceGroupStepView: View {
+    let subscription: Subscription
+    var onSelected: () -> Void
+
+    @State private var resourceGroups: [ResourceGroup] = []
+    @State private var isLoading = false
+    @State private var error: String?
+
+    var body: some View {
         List {
+            if let error {
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                }
+            }
             Section("Select a Resource Group") {
                 ForEach(resourceGroups) { rg in
-                    NavigationLink(value: NavigationStep.vms) {
+                    NavigationLink(value: rg) {
                         VStack(alignment: .leading) {
                             Text(rg.name)
                                 .font(.body)
@@ -83,25 +92,55 @@ struct VMSelectorView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .simultaneousGesture(TapGesture().onEnded {
-                        selectedResourceGroup = rg
-                        Task { await loadVMs(subscriptionId: selectedSubscription!.subscriptionId, resourceGroup: rg.name) }
-                    })
                 }
             }
         }
         .navigationTitle("Resource Group")
+        .navigationDestination(for: ResourceGroup.self) { rg in
+            VMStepView(subscription: subscription, resourceGroup: rg, onSelected: onSelected)
+        }
         .overlay {
             if isLoading && resourceGroups.isEmpty {
                 ProgressView("Loading resource groups...")
             }
         }
+        .task {
+            await loadResourceGroups()
+        }
     }
 
-    // MARK: - Step 3: Virtual Machines
+    private func loadResourceGroups() async {
+        isLoading = true
+        error = nil
+        do {
+            resourceGroups = try await AzureAPI.listResourceGroups(subscriptionId: subscription.subscriptionId)
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+}
 
-    private var vmList: some View {
+// MARK: - Step 3: Virtual Machines
+
+private struct VMStepView: View {
+    let subscription: Subscription
+    let resourceGroup: ResourceGroup
+    var onSelected: () -> Void
+
+    @State private var virtualMachines: [VirtualMachine] = []
+    @State private var isLoading = false
+    @State private var error: String?
+
+    var body: some View {
         List {
+            if let error {
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                }
+            }
             Section("Select a Virtual Machine") {
                 ForEach(virtualMachines) { vm in
                     Button {
@@ -131,39 +170,19 @@ struct VMSelectorView: View {
                 ProgressView("Loading VMs...")
             }
         }
-    }
-
-    // MARK: - Data Loading
-
-    private func loadSubscriptions() async {
-        isLoading = true
-        error = nil
-        do {
-            subscriptions = try await AzureAPI.listSubscriptions()
-        } catch {
-            self.error = error.localizedDescription
+        .task {
+            await loadVMs()
         }
-        isLoading = false
     }
 
-    private func loadResourceGroups(subscriptionId: String) async {
+    private func loadVMs() async {
         isLoading = true
         error = nil
-        resourceGroups = []
         do {
-            resourceGroups = try await AzureAPI.listResourceGroups(subscriptionId: subscriptionId)
-        } catch {
-            self.error = error.localizedDescription
-        }
-        isLoading = false
-    }
-
-    private func loadVMs(subscriptionId: String, resourceGroup: String) async {
-        isLoading = true
-        error = nil
-        virtualMachines = []
-        do {
-            virtualMachines = try await AzureAPI.listVirtualMachines(subscriptionId: subscriptionId, resourceGroup: resourceGroup)
+            virtualMachines = try await AzureAPI.listVirtualMachines(
+                subscriptionId: subscription.subscriptionId,
+                resourceGroup: resourceGroup.name
+            )
         } catch {
             self.error = error.localizedDescription
         }
@@ -171,11 +190,10 @@ struct VMSelectorView: View {
     }
 
     private func selectVM(_ vm: VirtualMachine) {
-        guard let sub = selectedSubscription, let rg = selectedResourceGroup else { return }
         let config = VmConfig(
-            subscriptionId: sub.subscriptionId,
-            subscriptionName: sub.displayName,
-            resourceGroup: rg.name,
+            subscriptionId: subscription.subscriptionId,
+            subscriptionName: subscription.displayName,
+            resourceGroup: resourceGroup.name,
             vmName: vm.name
         )
         ConfigStore.saveVmConfig(config)
