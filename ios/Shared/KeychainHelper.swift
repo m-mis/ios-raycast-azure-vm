@@ -3,12 +3,15 @@ import Security
 
 enum KeychainHelper {
     private static let service = "com.azure-vm.credentials"
+    private static let accessGroup = "group.com.azure-vm"
+
     static func saveCredentials(_ credentials: AzureCredentials) -> Bool {
         guard let data = try? JSONEncoder().encode(credentials) else { return false }
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
+            kSecAttrAccessGroup as String: accessGroup,
             kSecAttrAccount as String: "azure-credentials",
         ]
 
@@ -28,6 +31,7 @@ enum KeychainHelper {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
+            kSecAttrAccessGroup as String: accessGroup,
             kSecAttrAccount as String: "azure-credentials",
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
@@ -44,6 +48,7 @@ enum KeychainHelper {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
+            kSecAttrAccessGroup as String: accessGroup,
             kSecAttrAccount as String: "azure-credentials",
         ]
         SecItemDelete(query as CFDictionary)

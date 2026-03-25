@@ -29,8 +29,6 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.azure-vm
-        keychain-access-groups:
-          - $(AppIdentifierPrefix)group.com.azure-vm
 
   AzureVMWidgetExtension:
     type: app-extension
@@ -48,8 +46,6 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.azure-vm
-        keychain-access-groups:
-          - $(AppIdentifierPrefix)group.com.azure-vm
     dependencies:
       - target: AzureVM
         embed: false

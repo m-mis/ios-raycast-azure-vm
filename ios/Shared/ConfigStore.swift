@@ -1,10 +1,11 @@
 import Foundation
 
 enum ConfigStore {
+    private static let suiteName = "group.com.azure-vm"
     private static let vmConfigKey = "azure-vm-config"
 
     private static var defaults: UserDefaults {
-        UserDefaults.standard
+        UserDefaults(suiteName: suiteName) ?? UserDefaults.standard
     }
 
     static func loadVmConfig() -> VmConfig? {
