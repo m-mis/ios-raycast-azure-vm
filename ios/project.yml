@@ -31,6 +31,8 @@ targets:
           - group.com.azure-vm
     dependencies:
       - target: AzureVMWidgetExtension
+        embed: true
+        codeSign: true
 
   AzureVMWidgetExtension:
     type: app-extension
