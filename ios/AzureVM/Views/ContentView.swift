@@ -4,13 +4,16 @@ struct ContentView: View {
     @State private var hasCredentials = KeychainHelper.loadCredentials() != nil
     @State private var hasConfig = ConfigStore.loadVmConfig() != nil
     @State private var showSettings = false
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             if hasCredentials && hasConfig {
                 DashboardView(
                     onReconfigure: {
+                        ConfigStore.clearVmConfig()
                         hasConfig = false
+                        navigationPath = NavigationPath()
                     },
                     onShowSettings: {
                         showSettings = true
@@ -27,6 +30,7 @@ struct ContentView: View {
             } else if hasCredentials && !hasConfig {
                 VMSelectorView(onSelected: {
                     hasConfig = true
+                    navigationPath = NavigationPath()
                 })
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
