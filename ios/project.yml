@@ -29,6 +29,8 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.azure-vm
+    dependencies:
+      - target: AzureVMWidgetExtension
 
   AzureVMWidgetExtension:
     type: app-extension
@@ -46,9 +48,6 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.azure-vm
-    dependencies:
-      - target: AzureVM
-        embed: false
 
 schemes:
   AzureVM:
