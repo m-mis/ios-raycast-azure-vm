@@ -5,15 +5,15 @@ struct VMEntry: TimelineEntry {
     let date: Date
     let vmName: String
     let powerState: PowerState
-    let uptime: String?
+    let startedAt: Date?
     let isPlaceholder: Bool
 
     static var placeholder: VMEntry {
-        VMEntry(date: .now, vmName: "my-vm", powerState: .running, uptime: "2h30m", isPlaceholder: true)
+        VMEntry(date: .now, vmName: "my-vm", powerState: .running, startedAt: Date().addingTimeInterval(-9000), isPlaceholder: true)
     }
 
     static var notConfigured: VMEntry {
-        VMEntry(date: .now, vmName: "Not configured", powerState: .unknown, uptime: nil, isPlaceholder: false)
+        VMEntry(date: .now, vmName: "Not configured", powerState: .unknown, startedAt: nil, isPlaceholder: false)
     }
 }
 
@@ -51,16 +51,11 @@ struct VMTimelineProvider: TimelineProvider {
         do {
             let status = try await AzureAPI.getVmStatus(config: config)
 
-            var uptime: String?
-            if status.powerState == .running, let startedAt = status.startedAt {
-                uptime = formatUptime(from: startedAt)
-            }
-
             return VMEntry(
                 date: .now,
                 vmName: config.vmName,
                 powerState: status.powerState,
-                uptime: uptime,
+                startedAt: status.startedAt,
                 isPlaceholder: false
             )
         } catch {
@@ -68,7 +63,7 @@ struct VMTimelineProvider: TimelineProvider {
                 date: .now,
                 vmName: config.vmName,
                 powerState: .unknown,
-                uptime: nil,
+                startedAt: nil,
                 isPlaceholder: false
             )
         }

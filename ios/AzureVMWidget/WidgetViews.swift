@@ -40,6 +40,13 @@ struct AzureVMWidgetView: View {
                 .font(.caption2)
                 .foregroundStyle(entry.powerState.display.color)
                 .fontWeight(.semibold)
+
+            if entry.powerState == .running, let startedAt = entry.startedAt {
+                Text(startedAt, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .redacted(reason: entry.isPlaceholder ? .placeholder : [])
@@ -71,10 +78,14 @@ struct AzureVMWidgetView: View {
                     .foregroundStyle(entry.powerState.display.color)
                     .fontWeight(.semibold)
 
-                if let uptime = entry.uptime {
-                    Label(uptime, systemImage: "clock")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                if entry.powerState == .running, let startedAt = entry.startedAt {
+                    Label {
+                        Text(startedAt, style: .relative)
+                    } icon: {
+                        Image(systemName: "clock")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 Text(entry.date, style: .time)
